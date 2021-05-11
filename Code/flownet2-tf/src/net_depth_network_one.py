@@ -15,7 +15,12 @@ import numpy as np
 import time
 import threading
 import socket
-slim = tf.contrib.slim
+import tf_slim as slim
+
+
+
+# import tensorflow.compat.v1 as tf
+# tf.disable_v2_behavior()
 
 def load_image(image_file):
     image = cv2.resize(cv2.imread(file), (640, 480), interpolation = cv2.INTER_AREA)
@@ -65,10 +70,13 @@ class Net(object):
 
     def test(self, checkpoint,out_path, save_image=True, save_flo=True):
 
+        # physical_devices = tf.config.list_physical_devices('GPU')
+        # tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
         # TODO: This is a hack, we should get rid of this
         training_schedule = LONG_SCHEDULE
-        input_a = tf.placeholder(shape = [1,384, 512, 3], dtype = tf.float32, name = "source_image")
-        input_b = tf.placeholder(shape = [1,384, 512, 3], dtype = tf.float32, name = "target_image")
+        input_a = tf.compat.v1.placeholder(shape = [1,384, 512, 3], dtype = tf.float32, name = "source_image")
+        input_b = tf.compat.v1.placeholder(shape = [1,384, 512, 3], dtype = tf.float32, name = "target_image")
         inputs = {
             'input_a': input_a,
             'input_b': input_b,
@@ -77,27 +85,28 @@ class Net(object):
         predictions = self.model(inputs, training_schedule)
         pred_flow = predictions['flow']
 
-        saver = tf.train.Saver()
+        saver = tf.compat.v1.train.Saver()
 
         # define two sessions
-
-        sess_flow = tf.Session()
+        config = tf.compat.v1.ConfigProto()
+        config.gpu_options.allow_growth = True
+        sess_flow = tf.compat.v1.Session(config=config)
         #sess_ = tf.Session()
 
         # global initialisation
 
-        init_op_f = tf.global_variables_initializer()
+        init_op_f = tf.compat.v1.global_variables_initializer()
         sess_flow.run(init_op_f)
 
         #load the flow model
-        var_name_list = [v.name for v in tf.trainable_variables()]
+        var_name_list = [v.name for v in tf.compat.v1.trainable_variables()]
 
         saver.restore(sess_flow, checkpoint)
 
         # load the depth model
 
         f = gfile.FastGFile("./src/flownet2/FlowNet2/tf_model.pb", 'rb')
-        graph_def = tf.GraphDef()
+        graph_def = tf.compat.v1.GraphDef()
         graph_def.ParseFromString(f.read())
         f.close()
         sess_flow.graph.as_default()
@@ -109,7 +118,7 @@ class Net(object):
         pred_depth_tensor = sess_flow.graph.get_tensor_by_name('import/conv3/BiasAdd:0')
         HOST = '127.0.0.1'
         PORT = 50055
-        
+
         # inference input preprocessing
         while True:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -122,22 +131,30 @@ class Net(object):
                 if not data: break
                 print()
                 conn.send(data)
-                if(str(data)=='0'):
+
+                if(data.decode("utf-8")=='0'):
                     input_a_path='./src/image_baseline_2/initial_image.png'
                 else:
-                    input_a_path = './src/image_baseline_2_output/test.rgba.' + str(data).zfill(5) + '.png'
+                    input_a_path = './src/image_baseline_2_output/test.rgba.' + data.decode("utf-8").zfill(5) + '.png'
                 input_b_path = './src/image_baseline_2/desired_image.png'
 
+                print(input_a_path)
                 source =cv2.imread(input_a_path,cv2.COLOR_BGR2RGB)
                 target =cv2.imread(input_b_path,cv2.COLOR_BGR2RGB)
 
+                source =cv2.resize(source, (512, 384), interpolation = cv2.INTER_AREA)
+                target =cv2.resize(target, (512, 384), interpolation = cv2.INTER_AREA)
+
                 source = source / 255.0
-                inp_source = np.expand_dims(np.clip(cv2.resize(source, (640, 480), interpolation = cv2.INTER_AREA), 0, 1), axis = 0)
+                inp_source = np.expand_dims(np.clip(cv2.resize(source, (512, 384), interpolation = cv2.INTER_AREA), 0, 1), axis = 0)
                 target = target / 255.0
                 source = source[..., [2, 1, 0]]
                 target = target[..., [2, 1, 0]]
                 source = np.expand_dims(source, 0)
                 target = np.expand_dims(target, 0)
+                print(source.shape)
+                print(target.shape)
+                print(inp_source.shape)
                 predicted_flow, predicted_depth = sess_flow.run((pred_flow, pred_depth_tensor), feed_dict = {input_a : source,  input_b : target, input_image : inp_source})
                 pred_depth = np.clip(DepthNorm(predicted_depth, maxDepth=1000), 10, 1000) / 1000
                 pred_depth = scale_up(2, pred_depth[:,:,:,0]) * 100.0
@@ -161,15 +178,15 @@ class Net(object):
                 pred_depth = np.clip(DepthNorm(predicted_depth, maxDepth=1000), 10, 1000) / 1000
                 pred_depth = scale_up(2, pred_depth[:,:,:,0]) * 10.0
                 """
-                depth_img = np.zeros((480,640,1))
+                depth_img = np.zeros((384,512,1))
                 depth_img[:, :, 0] = pred_depth[0, :, :]
                 pred_flow_np = predicted_flow[0, :, :, :]
                 depth_img=cv2.resize(pred_depth[0, :, :], (512, 384), interpolation = cv2.INTER_AREA)
-                unique_name = 'test.flo.' + str(data).zfill(5)
+                unique_name = 'test.flo.' + data.decode("utf-8").zfill(5)
                 actual_name='output_img'
                 if save_image:
                     flow_img, avg_flow = flow_to_image(pred_flow_np)
-                    flowfile.write("Average flow - depth-network"+str(data).zfill(5)+":"+str(avg_flow))
+                    flowfile.write("Average flow - depth-network"+data.decode("utf-8").zfill(5)+":"+str(avg_flow))
                     full_out_path = os.path.join('./src/image_baseline_2_output/', unique_name + '.png')
                     imsave(full_out_path, flow_img)
 
@@ -178,7 +195,7 @@ class Net(object):
                     write_flow(pred_flow_np, full_out_path)
 
                 shan='test.depth.'
-                full_out_path = os.path.join('./src/image_baseline_2_output/',shan+str(data).zfill(5)+ '.png')
+                full_out_path = os.path.join('./src/image_baseline_2_output/',shan+data.decode("utf-8").zfill(5)+ '.png')
                 imsave(full_out_path, depth_img)
                 print('image saved at desired location  ')
                 image = np.asarray(imread(full_out_path))

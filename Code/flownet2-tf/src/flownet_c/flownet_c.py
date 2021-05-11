@@ -1,10 +1,12 @@
+# import tensorflow.compat.v1 as tf
+# tf.disable_v2_behavior()
 from ..net import Net, Mode
 from ..utils import LeakyReLU, average_endpoint_error, pad, antipad
 from ..correlation import correlation
 from ..downsample import downsample
 import math
 import tensorflow as tf
-slim = tf.contrib.slim
+import tf_slim as slim
 
 
 class FlowNetC(Net):
@@ -14,7 +16,7 @@ class FlowNetC(Net):
 
     def model(self, inputs, training_schedule, trainable=True):
         _, height, width, _ = inputs['input_a'].shape.as_list()
-        with tf.variable_scope('FlowNetC'):
+        with tf.compat.v1.variable_scope('FlowNetC'):
             with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
                                 # Only backprop this network if trainable
                                 trainable=trainable,
@@ -111,7 +113,7 @@ class FlowNetC(Net):
 
                     flow = predict_flow2 * 20.0
                     # TODO: Look at Accum (train) or Resample (deploy) to see if we need to do something different
-                    flow = tf.image.resize_bilinear(flow,
+                    flow = tf.compat.v1.image.resize_bilinear(flow,
                                                     tf.stack([height, width]),
                                                     align_corners=True)
 

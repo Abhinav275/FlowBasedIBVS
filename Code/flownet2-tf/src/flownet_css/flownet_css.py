@@ -3,7 +3,10 @@ from ..flownet_cs.flownet_cs import FlowNetCS
 from ..flownet_s.flownet_s import FlowNetS
 from ..flow_warp import flow_warp
 import tensorflow as tf
-
+# import tensorflow.compat.v1 as tf
+# tf.disable_v2_behavior()
+physical_devices = tf.config.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 class FlowNetCSS(Net):
 
@@ -13,7 +16,7 @@ class FlowNetCSS(Net):
         super(FlowNetCSS, self).__init__(mode=mode, debug=debug)
 
     def model(self, inputs, training_schedule, trainable=True):
-        with tf.variable_scope('FlowNetCSS'):
+        with tf.compat.v1.variable_scope('FlowNetCSS'):
             # Forward pass through FlowNetCS with weights frozen
             net_cs_predictions = self.net_cs.model(inputs, training_schedule, trainable=False)
 
@@ -23,7 +26,7 @@ class FlowNetCSS(Net):
             # Compute brightness error: sqrt(sum (input_a - warped)^2 over channels)
             brightness_error = inputs['input_a'] - warped
             brightness_error = tf.square(brightness_error)
-            brightness_error = tf.reduce_sum(brightness_error, keep_dims=True, axis=3)
+            brightness_error = tf.compat.v1.reduce_sum(brightness_error, keep_dims=True, axis=3)
             brightness_error = tf.sqrt(brightness_error)
 
             # Gather all inputs to FlowNetS

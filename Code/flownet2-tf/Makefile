@@ -1,17 +1,18 @@
 # Makefile
 
-TF_INC = `python -c "import tensorflow; print(tensorflow.sysconfig.get_include())"`
+TF_CFLAGS=`python3 -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_compile_flags()))'`
+TF_LFLAGS=`python3 -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_link_flags()))'`
 
 ifndef CUDA_HOME
-    CUDA_HOME := /opt/cuda/8.0
+    CUDA_HOME := /usr/local/cuda
 endif
 
 CC        = gcc -O2 -pthread
 CXX       = g++
 GPUCC     = nvcc
-CFLAGS    = -std=c++11 -I$(TF_INC) -I"$(CUDA_HOME)/include" -DGOOGLE_CUDA=1
+CFLAGS    = -std=c++11 $(TF_CFLAGS) -I"$(CUDA_HOME)/include" -I"$(CUDA_HOME)/.." -D GOOGLE_CUDA=1 -D NDEBUG
 GPUCFLAGS = -c --expt-relaxed-constexpr
-LFLAGS    = -pthread -shared -fPIC
+LFLAGS    = -pthread -shared -fPIC $(TF_LFLAGS)
 GPULFLAGS = -x cu -Xcompiler -fPIC
 CGPUFLAGS = -L$(CUDA_HOME)/lib -L$(CUDA_HOME)/lib64 -lcudart
 
@@ -53,7 +54,7 @@ ifeq ($(detected_OS),Darwin)  # Mac OS X
 	CGPUFLAGS += -undefined dynamic_lookup
 endif
 ifeq ($(detected_OS),Linux)
-	CFLAGS += -D_MWAITXINTRIN_H_INCLUDED -D_FORCE_INLINES -D__STRICT_ANSI__ -D_GLIBCXX_USE_CXX11_ABI=0
+	CFLAGS += -D_MWAITXINTRIN_H_INCLUDED -D_FORCE_INLINES -D__STRICT_ANSI__
 endif
 
 all: preprocessing downsample correlation flowwarp

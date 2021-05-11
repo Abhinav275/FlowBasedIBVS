@@ -1,12 +1,13 @@
 import tensorflow as tf
-
+# import tensorflow.compat.v1 as tf
+# tf.disable_v2_behavior()
+physical_devices = tf.config.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 # Thanks, https://github.com/tensorflow/tensorflow/issues/4079
 def LeakyReLU(x, leak=0.1, name="lrelu"):
-    with tf.variable_scope(name):
-        f1 = 0.5 * (1.0 + leak)
-        f2 = 0.5 * (1.0 - leak)
-        return f1 * x + f2 * abs(x)
+    with tf.compat.v1.variable_scope(name):
+        return (0.5 * (1.0 + leak)) * x + (0.5 * (1.0 - leak)) * abs(x)
 
 
 def average_endpoint_error(labels, predictions):

@@ -5,7 +5,10 @@ from ..flow_warp import flow_warp
 from ..utils import LeakyReLU, average_endpoint_error, pad, antipad
 from ..downsample import downsample
 import tensorflow as tf
-slim = tf.contrib.slim
+import tf_slim as slim
+
+physical_devices = tf.config.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 
 class FlowNet2(Net):

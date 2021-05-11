@@ -7,7 +7,7 @@ import numpy as np
 from scipy.misc import imread, imsave
 import uuid
 from .training_schedules import LONG_SCHEDULE
-slim = tf.contrib.slim
+import tf_slim as slim
 
 
 class Mode(Enum):

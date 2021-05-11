@@ -1,3 +1,5 @@
+# import tensorflow.compat.v1 as tf
+# tf.disable_v2_behavior()
 from ..net_depth_network_one import Net, Mode
 from ..flownet_css.flownet_css import FlowNetCSS
 from ..flownet_sd.flownet_sd import FlowNetSD
@@ -5,8 +7,10 @@ from ..flow_warp import flow_warp
 from ..utils import LeakyReLU, average_endpoint_error, pad, antipad
 from ..downsample import downsample
 import tensorflow as tf
-slim = tf.contrib.slim
+import tf_slim as slim
 
+physical_devices = tf.config.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 class FlowNet2(Net):
 
@@ -17,14 +21,14 @@ class FlowNet2(Net):
 
     def model(self, inputs, training_schedule, trainable=True):
         _, height, width, _ = inputs['input_a'].shape.as_list()
-        with tf.variable_scope('FlowNet2'):
+        with tf.compat.v1.variable_scope('FlowNet2'):
             # Forward pass through FlowNetCSS and FlowNetSD with weights frozen
             net_css_predictions = self.net_css.model(inputs, training_schedule, trainable=False)
             net_sd_predictions = self.net_sd.model(inputs, training_schedule, trainable=False)
 
             def ChannelNorm(tensor):
                 sq = tf.square(tensor)
-                r_sum = tf.reduce_sum(sq, keep_dims=True, axis=3)
+                r_sum = tf.compat.v1.reduce_sum(sq, keep_dims=True, axis=3)
                 return tf.sqrt(r_sum)
 
             sd_flow_norm = ChannelNorm(net_sd_predictions['flow'])
@@ -97,7 +101,7 @@ class FlowNet2(Net):
                     predict_flow0 = slim.conv2d(pad(fuse_interconv0), 2,
                                                 3, activation_fn=None, scope='predict_flow0')
 
-                    flow = tf.image.resize_bilinear(
+                    flow = tf.compat.v1.image.resize_bilinear(
                         predict_flow0, tf.stack([height, width]), align_corners=True)
                     return {
                         'predict_flow0': predict_flow0,

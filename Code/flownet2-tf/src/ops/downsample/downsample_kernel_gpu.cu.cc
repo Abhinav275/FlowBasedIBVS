@@ -10,7 +10,7 @@
 #include "tensorflow/core/framework/types.h"
 #include "tensorflow/core/framework/tensor_types.h"
 #include "tensorflow/core/platform/types.h"
-#include "tensorflow/core/util/cuda_kernel_helper.h"
+#include "tensorflow/core/util/gpu_kernel_helper.h"
 
 #define CUDART_NAN_F            __int_as_float(0x7fffffff)
 

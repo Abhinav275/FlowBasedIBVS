@@ -3,8 +3,13 @@ from ..utils import LeakyReLU, average_endpoint_error, pad, antipad
 from ..downsample import downsample
 import math
 import tensorflow as tf
-slim = tf.contrib.slim
+import tf_slim as slim
+import tensorflow.compat.v1 as tf
 
+physical_devices = tf.config.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
+tf.disable_v2_behavior()
 
 class FlowNetS(Net):
 

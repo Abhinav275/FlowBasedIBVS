@@ -6,7 +6,7 @@
 #include <iostream>
 
 #include "pad.h"
-#include "tensorflow/core/util/cuda_kernel_helper.h"
+#include "tensorflow/core/util/gpu_kernel_helper.h"
 
 namespace tensorflow {
 typedef Eigen::GpuDevice GPUDevice;
