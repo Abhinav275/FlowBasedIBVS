@@ -71,7 +71,7 @@ class DemoRunner:
         sensor_specs = []
         for sensor_uuid, sensor_params in sensors.items():
             if settings[sensor_uuid]:
-                sensor_spec = hsim.SensorSpec()
+                sensor_spec = habitat_sim.CameraSensorSpec()
                 sensor_spec.uuid = sensor_uuid
                 sensor_spec.sensor_type = sensor_params["sensor_type"]
                 sensor_spec.resolution = sensor_params["resolution"]
@@ -545,7 +545,7 @@ class DemoRunner:
             # os.system(command)
             os.chdir("../../../habitat_sim_client")
             print('Before photo_error')
-            file_in=open("../flownet2-tf/src/aaaaa/baseline_2_photo.txt","r")
+            # file_in=open("../flownet2-tf/src/aaaaa/baseline_2_photo.txt","r")
             # for line in file_in.readlines():
             #   photo_error=(float(line))
             print(photo_error)
