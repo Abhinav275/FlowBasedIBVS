@@ -7,6 +7,7 @@ from io import BytesIO
 from PIL import Image, ImageFile
 import os
 import random
+import time
 from interactionMatrix import interactionMatrix
 import scipy.io
 from numpy import linalg as LA
@@ -23,7 +24,7 @@ from enum import Enum
 
 import quaternion
 import habitat_sim
-from habitat_sim.utils import d3_40_colors_rgb
+from habitat_sim.utils.common import d3_40_colors_rgb
 import habitat_sim.bindings as hsim
 from settings_me import default_sim_settings
 
@@ -45,7 +46,7 @@ class DemoRunner:
     def make_cfg(self, settings,Vx,Vy,Vz,Wx,Wy,Wz):
         sim_cfg = hsim.SimulatorConfiguration()
         sim_cfg.gpu_device_id = 0
-        sim_cfg.scene.id = settings["scene"]
+        sim_cfg.scene_id = settings["scene"]
 
         # define default sensor parameters (see src/esp/Sensor/Sensor.h)
         sensors = {
@@ -111,7 +112,7 @@ class DemoRunner:
 
     def save_color_observation(self, obs, total_frames):
         color_obs = obs["color_sensor"]
-        color_img = Image.fromarray(color_obs, mode="RGBA")
+        color_img = Image.fromarray(color_obs, mode="RGBA").convert('RGB')
         color_img.save("../flownet2-tf/src/image_baseline_2_output/test.rgba.%05d.png" % total_frames)
 
     def save_semantic_observation(self, obs, total_frames):
@@ -144,18 +145,18 @@ class DemoRunner:
     def init_agent_state(self, agent_id):
         # initialize the agent at a random start state
         new_state =habitat_sim.agent.AgentState()
-        new_state.position=np.array([1,0,0]).astype('float32')
+        new_state.position=np.array([-1.237694  ,  0.07954199,  8.459818  ]).astype('float32')
 
-        new_state.rotation = np.quaternion(1,0,0,0) #deenikosam import quaternion, import numpy as np
+        new_state.rotation = np.quaternion(0.915825247764587, 0, 0.401577025651932, 0) #deenikosam import quaternion, import numpy as np
         agent = self._sim.initialize_agent(agent_id, new_state)
         start_state=agent.get_state()
 
         # force starting position on first floor (try 100 samples)
         num_start_tries = 0
-        while start_state.position[1] > 0.5 and num_start_tries < 100:
-            start_state.position = self._sim.pathfinder.get_random_navigable_point()
-            num_start_tries += 1
-        agent.set_state(start_state)
+        # while start_state.position[1] > 0.5 and num_start_tries < 100:
+        #     start_state.position = self._sim.pathfinder.get_random_navigable_point()
+        #     num_start_tries += 1
+        # agent.set_state(start_state)
 
         if not self._sim_settings["silent"]:
             print(
@@ -319,9 +320,15 @@ class DemoRunner:
         width = np.fromfile(f, np.int32, 1).squeeze()
         height = np.fromfile(f, np.int32, 1).squeeze()
 
-        flow = np.fromfile(f, np.float32, width * height * 2).reshape((height, width, 2))
+        print(width, height, name)
 
-        return flow.astype(np.float32)
+        flow = np.fromfile(f, np.float32, width * height * 2)
+        if(flow.shape == height*width*2):
+            flow = flow.reshape((height, width, 2))
+            return flow.astype(np.float32)
+
+        else:
+            return np.array([])
 
     def ibvs_controller(self,vik,Z,cam,error):
 
@@ -331,6 +338,8 @@ class DemoRunner:
         w=0.5*0.15
         print(Z)
         print(Z.shape)
+
+        # forming the image jacobian
         Lsd=interactionMatrix(vik,cam,Z)
         lamda=0.1# mundhu unde alagane
         mu=0.1
@@ -353,7 +362,10 @@ class DemoRunner:
         f1=open("../flownet2-tf/src/aaaaa/baseline_2_velocities_norm_1.txt","a+")
         f2=open("../flownet2-tf/src/aaaaa/baseline_2.txt","w")
         print('before getting flo')
+        time.sleep(1)
         error= self.readFlow('../flownet2-tf/src/output_dir/output_img.flo' )
+        if(error.size == 0):
+            return
         print('after reading flo')
         print(error.shape)
         # print(error)
@@ -399,7 +411,7 @@ class DemoRunner:
         cam=np.asarray([[nx/2,0,nx/2],[0,ny/2, ny/2 ],[ 0, 0, 1]])
 
         vc=self.ibvs_controller(vik,Z,cam,error)
-        
+
         f1.write("%.20f\n"%(LA.norm(vc[0:3,0])))
         f1.close()
         f2.write("%.20f\n"%(LA.norm(vc[0:3,0])))
@@ -418,6 +430,7 @@ class DemoRunner:
         s_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s_.connect((HOST, PORT))
 
+        # initiate the simulation and the agent
         start_state = self.init_common(Vx,Vy,Vz,Wx,Wy,Wz,harish)
         frames=0
         p=self._sim._default_agent
@@ -528,13 +541,13 @@ class DemoRunner:
 
             os.chdir("../flownet2-tf/src/baseline_2/")
             ##################### change here when you change for iterations
-            command="python2 photo_error.py "+str(frames) + " 20"
-            os.system(command)
+            # command="python2 photo_error.py "+str(frames) + " 20"
+            # os.system(command)
             os.chdir("../../../habitat_sim_client")
             print('Before photo_error')
             file_in=open("../flownet2-tf/src/aaaaa/baseline_2_photo.txt","r")
-            for line in file_in.readlines():
-              photo_error=(float(line))
+            # for line in file_in.readlines():
+            #   photo_error=(float(line))
             print(photo_error)
             print('after_photo_error')
             os.remove('../flownet2-tf/src/output_dir/output_img.flo')
