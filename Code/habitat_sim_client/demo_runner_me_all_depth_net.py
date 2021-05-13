@@ -11,6 +11,7 @@ import time
 from interactionMatrix import interactionMatrix
 import scipy.io
 from numpy import linalg as LA
+
 #
 # from scipy.misc import imread, imsave
 
@@ -18,6 +19,7 @@ import sys
 import time
 import socket
 
+import magnum as mn
 import numpy as np
 from enum import Enum
 # from PIL import Image
@@ -144,11 +146,12 @@ class DemoRunner:
 
     def init_agent_state(self, agent_id):
         # initialize the agent at a random start state
-        new_state =habitat_sim.agent.AgentState()
-        new_state.position=np.array([-1.237694  ,  0.07954199,  8.459818  ]).astype('float32')
-
-        new_state.rotation = np.quaternion(0.915825247764587, 0, 0.401577025651932, 0) #deenikosam import quaternion, import numpy as np
-        agent = self._sim.initialize_agent(agent_id, new_state)
+        agent_state =habitat_sim.agent.AgentState()
+        # new_state.position=np.array([-1.237694  ,  0.07954199,  8.459818  ]).astype('float32')
+        # new_state.rotation = np.quaternion(0.915825247764587, 0, 0.401577025651932, 0) #deenikosam import quaternion, import numpy as np
+        agent_state.position = [2.3731883, 4.08431792, 19.606928]
+        agent_state.rotation = np.quaternion(0.915825247764587, 0, 0.401577025651932, 0)
+        agent = self._sim.initialize_agent(agent_id, agent_state)
         start_state=agent.get_state()
 
         # force starting position on first floor (try 100 samples)
@@ -432,6 +435,17 @@ class DemoRunner:
 
         # initiate the simulation and the agent
         start_state = self.init_common(Vx,Vy,Vz,Wx,Wy,Wz,harish)
+        obj_templates_mgr = self._sim.get_object_template_manager()
+
+        # rigid object    
+        sphere_template_id = obj_templates_mgr.load_configs(
+            str(os.path.join('/content/habitat-sim/data', "test_assets/objects/sphere"))
+        )[0]
+        
+        id_1 = self._sim.add_object(sphere_template_id)
+        # id_1 = sim.add_object(cheezit)
+        self._sim.set_object_motion_type(habitat_sim.physics.MotionType.KINEMATIC, id_1)
+        self._sim.set_translation(np.array([-2.3731883, 2.08431792, 4.606928]), id_1)
         frames=0
         p=self._sim._default_agent
 
@@ -526,6 +540,13 @@ class DemoRunner:
 
             state.sensor_states={'color_sensor': habitat_sim.agent.SixDOFPose(position=np.array([state.position[0],state.position[1]+1.5,state.position[2]]), rotation= state.rotation), 'depth_sensor': habitat_sim.agent.SixDOFPose(position=np.array([state.position[0],state.position[1]+1.5,state.position[2]]), rotation=state.rotation)}
             p.set_state(state)
+            self._sim.set_translation(self._sim.get_translation(id_1) + np.array([0, 0, 0.06]), id_1)
+            self._sim.set_rotation(
+                mn.Quaternion.rotation(mn.Rad(0.03), np.array([-1.0, 0, 0]))
+                * self._sim.get_rotation(id_1),
+                id_1,
+            )
+            self._sim.step_physics(1.0 / 600.0)
             self._sim._last_state=p.get_state()
             print("p.last_state",self._sim._last_state)
             observations=self._sim.get_sensor_observations()
